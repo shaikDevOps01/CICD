@@ -1,0 +1,82 @@
+name: Node.js CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  STAGING_URL: https://your-staging-app.example.com
+  PRODUCTION_URL: https://your-production-app.example.com
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Build
+      run: echo "Building application..."
+      # In real project: npm run build
+      
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: node-app
+        path: |
+          app.js
+          package.json
+          package-lock.json
+          node_modules/
+
+  deploy-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: node-app
+        
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        echo "STAGING_URL=${{ env.STAGING_URL }}"
+        # Actual deployment commands would go here
+        # For example: scp files to server or trigger hosting provider API
+        
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: node-app
+        
+    - name: Wait for approval
+      uses: trstringer/manual-approval@v1
+      with:
+        secret: ${{ github.token }}
+        approvers: team-lead,manager
+        minimum-approvals: 1
+        
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        echo "PRODUCTION_URL=${{ env.PRODUCTION_URL }}"
+        # Actual deployment commands would go here
